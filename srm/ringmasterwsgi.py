@@ -27,7 +27,7 @@ class FileIterator(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         chunk = self.fileobj.read(self.chunk_size)
         if not chunk:
             raise StopIteration

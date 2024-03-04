@@ -1,6 +1,6 @@
 import os
 import unittest
-import cPickle as pickle
+import pickle as pickle
 from shutil import rmtree
 from tempfile import mkdtemp
 from mock import MagicMock, patch
@@ -8,7 +8,7 @@ from swift.common.ring import RingBuilder
 from srm.ringminion import RingMinion
 from srm.utils import get_md5sum
 from swift.common import utils
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 
 class MockResponse(object):
 
@@ -37,7 +37,7 @@ class FakedBuilder(object):
 
     def gen_builder(self, balanced=False):
         builder = RingBuilder(8, 3, 1)
-        for i in xrange(self.device_count):
+        for i in range(self.device_count):
             region = "1"
             zone = i
             ipaddr = "1.1.1.1"
@@ -51,8 +51,8 @@ class FakedBuilder(object):
             builder.add_dev({'id': next_dev_id, 'zone': zone, 'ip': ipaddr,
                              'port': int(port), 'device': device_name,
                              'weight': weight, 'meta': meta, 'region': region})
-            if balanced:
-                builder.rebalance()
+        if balanced:
+            builder.rebalance()
         return builder
 
     def write_builder(self, tfile, builder):
@@ -65,7 +65,7 @@ class test_ringmasterminion(unittest.TestCase):
         utils.HASH_PATH_SUFFIX = 'endcap'
         utils.HASH_PATH_PREFIX = ''
         self.testdir = mkdtemp()
-        self.patcher = patch('urllib2.urlopen')
+        self.patcher = patch('urllib.request.urlopen')
         self.urlopen_mock = self.patcher.start()
 
     def tearDown(self):
@@ -93,7 +93,7 @@ class test_ringmasterminion(unittest.TestCase):
         try:
             minion._validate_ring(obj_ring, 'badmd5')
         except Exception as err:
-            self.assertEqual(err.message, "md5 missmatch")
+            self.assertEqual(str(err), "md5 missmatch")
         else:
             self.fail('Should have thrown md5 missmatch exception')
         # bad ring file
@@ -104,7 +104,7 @@ class test_ringmasterminion(unittest.TestCase):
         try:
             minion._validate_ring(bfile, test_md5)
         except Exception as err:
-            self.assertEqual(err.message, "Invalid ring")
+            self.assertEqual(str(err), "Invalid ring")
         else:
             self.fail('Should have thrown Invalid ring exception')
 
@@ -120,23 +120,23 @@ class test_ringmasterminion(unittest.TestCase):
         minion.logger = MagicMock()
         self.urlopen_mock.return_value = MockResponse(code=203)
         result = minion.fetch_ring('object')
-        self.assertEquals(self.urlopen_mock.call_count, 1)
+        self.assertEqual(self.urlopen_mock.call_count, 1)
         self.assertFalse(result)
-        urllib2.urlopen.assert_called_once
+        urllib.request.urlopen.assert_called_once
         minion.logger.warning.assert_called_once_with('Received non 200 status code')
         minion.logger.warning.reset_mock()
         self.urlopen_mock.reset_mock()
         #test 304
-        self.urlopen_mock.side_effect = urllib2.HTTPError('http://a.com', 304, 'Nope', {}, None)
+        self.urlopen_mock.side_effect = urllib.error.HTTPError('http://a.com', 304, 'Nope', {}, None)
         minion.logger.debug.reset_mock()
         minion.logger.warning.reset_mock()
         minion.logger.exception.reset_mock()
         result = minion.fetch_ring('object')
-        self.assertEquals(result, None)
+        self.assertEqual(result, None)
         minion.logger.debug.assert_called_with('Ring-master reports ring unchanged.')
         minion.logger.debug.reset_mock()
         #test HTTPError non 304
-        self.urlopen_mock.side_effect = urllib2.HTTPError('http://a.com', 401, 'GTFO', {}, None)
+        self.urlopen_mock.side_effect = urllib.error.HTTPError('http://a.com', 401, 'GTFO', {}, None)
         minion.logger.debug.reset_mock()
         minion.logger.warning.reset_mock()
         minion.logger.exception.reset_mock()
@@ -145,7 +145,7 @@ class test_ringmasterminion(unittest.TestCase):
         minion.logger.exception.assert_called_with('Error communicating with ring-master')
         minion.logger.exception.reset_mock()
         #test urllib2.URLError
-        self.urlopen_mock.side_effect = urllib2.URLError('oops')
+        self.urlopen_mock.side_effect = urllib.error.URLError('oops')
         minion.logger.debug.reset_mock()
         minion.logger.warning.reset_mock()
         minion.logger.exception.reset_mock()

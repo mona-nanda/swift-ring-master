@@ -6,7 +6,7 @@ import os
 import sys
 import optparse
 import subprocess
-import cPickle as pickle
+import pickle as pickle
 from os.path import exists
 from time import time, sleep, gmtime
 from tempfile import mkstemp
@@ -272,7 +272,7 @@ class RingMasterServer(object):
             backup, backup_md5 = make_backup(builder_file, self.backup_dir)
             self.logger.notice('--> Backed up %s to %s (%s)' %
                               (builder_file, backup, backup_md5))
-            chmod(tmppath, 0644)
+            chmod(tmppath, 0o644)
             rename(tmppath, builder_file)
         except Exception as err:
             raise Exception('Error writing builder: %s' % err)
@@ -308,7 +308,7 @@ class RingMasterServer(object):
             backup, backup_md5 = make_backup(ring_file, self.backup_dir)
             self.logger.notice('--> Backed up %s to %s (%s)' %
                               (ring_file, backup, backup_md5))
-            chmod(tmppath, 0644)
+            chmod(tmppath, 0o644)
             rename(tmppath, ring_file)
         except Exception as err:
             raise Exception('Error writing builder: %s' % err)
@@ -474,11 +474,11 @@ def run_server():
         elif 'restart' == sys.argv[1]:
             daemon.restart(conf)
         elif 'pause' == sys.argv[1]:
-            print "Writing pause file"
+            print("Writing pause file")
             with open(pfile, 'w') as f:
                 f.write("")
         elif 'unpause':
-            print "Removing pause file"
+            print("Removing pause file")
             unlink(pfile)
         else:
             args.print_help()

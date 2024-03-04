@@ -3,7 +3,7 @@ ring-minion
 """
 import os
 import sys
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import optparse
 from time import sleep
 from random import choice
@@ -78,7 +78,7 @@ class RingMinion(object):
 
     def _move_in_place(self, tmppath, ring_type, expected_md5):
         """Move the tmp ring into place"""
-        os.chmod(tmppath, 0644)
+        os.chmod(tmppath, 0o644)
         os.rename(tmppath, self.rings[ring_type])
         self.current_md5[self.rings[ring_type]] = expected_md5
 
@@ -94,8 +94,8 @@ class RingMinion(object):
             headers = {'If-None-Match': self.current_md5[
                 self.rings[ring_type]]}
             self.logger.debug("Checking on %s ring" % (ring_type))
-            request = urllib2.Request(url, headers=headers)
-            response = urllib2.urlopen(
+            request = urllib.request.Request(url, headers=headers)
+            response = urllib.request.urlopen(
                 request, timeout=self.ring_master_timeout)
             if not response.code == 200:
                 self.logger.warning('Received non 200 status code')
@@ -104,14 +104,14 @@ class RingMinion(object):
             self._validate_ring(tmp_ring_path, response.headers.get('etag'))
             self._move_in_place(tmp_ring_path, ring_type,
                                 response.headers.get('etag'))
-        except urllib2.HTTPError, e:
+        except urllib.error.HTTPError as e:
             if e.code == 304:
                 self.logger.debug('Ring-master reports ring unchanged.')
                 return None
             else:
                 self.logger.exception('Error communicating with ring-master')
                 return False
-        except urllib2.URLError:
+        except urllib.error.URLError:
             self.logger.exception('Error communicating with ring-master')
             return False
         except Exception:
@@ -127,7 +127,7 @@ class RingMinion(object):
     def watch_loop(self):
         """Start monitoring ring files for changes"""
         # insert a random delay on startup so we don't flood the server
-        sleep(choice(range(self.start_delay)))
+        sleep(choice(list(range(self.start_delay))))
         while True:
             try:
                 for ring in self.rings:
@@ -142,7 +142,7 @@ class RingMinion(object):
                 try:
                     self.logger.exception('Error in watch loop')
                 except Exception:
-                    print "Got exception and exception while trying to log"
+                    print("Got exception and exception while trying to log")
             sleep(self.check_interval)
 
     def once(self):
@@ -150,11 +150,11 @@ class RingMinion(object):
         for ring in self.rings:
             changed = self.fetch_ring(ring)
             if changed:
-                print "%s ring updated" % ring
+                print("%s ring updated" % ring)
             elif changed is False:
-                print "%s ring change failed" % ring
+                print("%s ring change failed" % ring)
             elif changed is None:
-                print "%s ring remains unchanged" % ring
+                print("%s ring remains unchanged" % ring)
 
 
 class RingMiniond(Daemon):
@@ -169,7 +169,7 @@ class RingMiniond(Daemon):
                 minion.watch_loop()
             except Exception as err:
                 # just in case
-                print err
+                print(err)
 
 
 def run_server():

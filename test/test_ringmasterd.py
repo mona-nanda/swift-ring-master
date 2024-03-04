@@ -3,7 +3,7 @@ import time
 import subprocess  # to patch
 import json
 import unittest
-import cPickle as pickle
+import pickle as pickle
 from shutil import rmtree
 from tempfile import mkdtemp
 from swift.common import utils
@@ -19,7 +19,8 @@ class FakedBuilder(object):
 
     def gen_builder(self, balanced=False):
         builder = RingBuilder(18, 3, 1)
-        for i in xrange(self.device_count):
+        for i in range(self.device_count):
+            region = '1'
             zone = i
             ipaddr = "1.1.1.1"
             port = 6010
@@ -31,7 +32,7 @@ class FakedBuilder(object):
                 next_dev_id = max(d['id'] for d in builder.devs if d) + 1
             builder.add_dev({'id': next_dev_id, 'zone': zone, 'ip': ipaddr,
                              'port': int(port), 'device': device_name,
-                             'weight': weight, 'meta': meta})
+                             'weight': weight, 'meta': meta, 'region': region})
         # add an empty dev
         builder.devs.append(None)
         if balanced:
@@ -83,9 +84,9 @@ class test_ringmasterserver(unittest.TestCase):
         rmd = RingMasterServer(rms_conf={'ringmasterd': self.confdict})
         rmd.logger = MagicMock()
         rmd.pause_if_asked()
-        self.assertEquals(fsleep.call_count, 1)
-        self.assertEquals(fexists.call_count, 3)
-        self.assertEquals(rmd.logger.notice.call_count, 2)
+        self.assertEqual(fsleep.call_count, 1)
+        self.assertEqual(fexists.call_count, 3)
+        self.assertEqual(rmd.logger.notice.call_count, 2)
 
     def test_adjust_ring(self):
         fb = FakedBuilder(device_count=4)
@@ -95,32 +96,32 @@ class test_ringmasterserver(unittest.TestCase):
         # test no weight changes
         builder.devs[0]['target_weight'] = 100.0
         rmd.adjust_ring(builder)
-        self.assertEquals(builder.devs[0]['weight'], 100.0)
+        self.assertEqual(builder.devs[0]['weight'], 100.0)
         # test weight shift 1 inc
         builder.devs[0]['target_weight'] = 110.0
         rmd.adjust_ring(builder)
-        self.assertEquals(builder.devs[0]['weight'], 105.0)
+        self.assertEqual(builder.devs[0]['weight'], 105.0)
         # test weight shift partial increment
         builder.devs[0]['target_weight'] = 107.0
         rmd.adjust_ring(builder)
-        self.assertEquals(builder.devs[0]['weight'], 107.0)
+        self.assertEqual(builder.devs[0]['weight'], 107.0)
         # test weight shift down one increment
         builder.devs[1]['target_weight'] = 90.0
         rmd.adjust_ring(builder)
-        self.assertEquals(builder.devs[1]['weight'], 95.0)
+        self.assertEqual(builder.devs[1]['weight'], 95.0)
         # test weight shift down partial increment
         builder.devs[1]['target_weight'] = 92.0
         rmd.adjust_ring(builder)
-        self.assertEquals(builder.devs[1]['weight'], 92.0)
+        self.assertEqual(builder.devs[1]['weight'], 92.0)
         # test weight shift down an exact increment
         builder.devs[1]['target_weight'] = 87.0
         rmd.adjust_ring(builder)
-        self.assertEquals(builder.devs[1]['weight'], 87.0)
+        self.assertEqual(builder.devs[1]['weight'], 87.0)
         # test weight shift with custom weight shift
         builder.devs[1]['target_weight'] = 70.0
         builder.devs[1]['weight_shift'] = 17
         rmd.adjust_ring(builder)
-        self.assertEquals(builder.devs[1]['weight'], 70.0)
+        self.assertEqual(builder.devs[1]['weight'], 70.0)
 
     def test_ring_requires_change(self):
         fb = FakedBuilder(device_count=4)
@@ -164,25 +165,25 @@ class test_ringmasterserver(unittest.TestCase):
         rmd.logger = MagicMock()
         # test account
         self.assertTrue(rmd.dispersion_ok('account'))
-        self.assertEquals(rmd.logger.notice.call_count, 0)
-        self.assertEquals(rmd.logger.exception.call_count, 0)
+        self.assertEqual(rmd.logger.notice.call_count, 0)
+        self.assertEqual(rmd.logger.exception.call_count, 0)
         rmd.logger.reset_mock()
         # test container and object ok
         self.assertTrue(rmd.dispersion_ok('container'))
         self.assertTrue(rmd.dispersion_ok('object'))
-        self.assertEquals(rmd.logger.debug.call_count, 4)
-        self.assertEquals(rmd.logger.exception.call_count, 0)
+        self.assertEqual(rmd.logger.debug.call_count, 4)
+        self.assertEqual(rmd.logger.exception.call_count, 0)
         rmd.logger.reset_mock()
         # test that container and obj are ok on missing a small pct
         dsp_rpt_spct = dsp_rpt
         dsp_rpt_spct['container']['pct_found'] = 99.9995
         dsp_rpt_spct['object']['pct_found'] = 99.9995
         popen.return_value.communicate.return_value = [json.dumps(dsp_rpt_spct)]
-        print json.dumps(dsp_rpt_spct)
+        print(json.dumps(dsp_rpt_spct))
         self.assertTrue(rmd.dispersion_ok('container'))
         self.assertTrue(rmd.dispersion_ok('object'))
-        self.assertEquals(rmd.logger.debug.call_count, 4)
-        self.assertEquals(rmd.logger.exception.call_count, 0)
+        self.assertEqual(rmd.logger.debug.call_count, 4)
+        self.assertEqual(rmd.logger.exception.call_count, 0)
         rmd.logger.reset_mock()
         # test that container and obj fail on missing 2 replicas
         dsp_rpt_missing = dsp_rpt
@@ -192,8 +193,8 @@ class test_ringmasterserver(unittest.TestCase):
             dsp_rpt_missing)]
         self.assertFalse(rmd.dispersion_ok('container'))
         self.assertFalse(rmd.dispersion_ok('object'))
-        self.assertEquals(rmd.logger.debug.call_count, 4)
-        self.assertEquals(rmd.logger.exception.call_count, 0)
+        self.assertEqual(rmd.logger.debug.call_count, 4)
+        self.assertEqual(rmd.logger.exception.call_count, 0)
         rmd.logger.reset_mock()
         # test that container and obj fail on missing large pct
         dsp_rpt_pct = dsp_rpt
@@ -204,15 +205,15 @@ class test_ringmasterserver(unittest.TestCase):
         popen.return_value.communicate.return_value = [json.dumps(dsp_rpt_pct)]
         self.assertFalse(rmd.dispersion_ok('container'))
         self.assertFalse(rmd.dispersion_ok('object'))
-        self.assertEquals(rmd.logger.debug.call_count, 4)
-        self.assertEquals(rmd.logger.exception.call_count, 0)
+        self.assertEqual(rmd.logger.debug.call_count, 4)
+        self.assertEqual(rmd.logger.exception.call_count, 0)
         rmd.logger.reset_mock()
         # test catch exception
         popen.return_value.communicate.return_value = ''
         self.assertFalse(rmd.dispersion_ok('container'))
         self.assertFalse(rmd.dispersion_ok('object'))
-        self.assertEquals(rmd.logger.debug.call_count, 2)
-        self.assertEquals(rmd.logger.exception.call_count, 2)
+        self.assertEqual(rmd.logger.debug.call_count, 2)
+        self.assertEqual(rmd.logger.exception.call_count, 2)
         rmd.logger.reset_mock()
         # test no output
         popen.return_value.communicate.return_value = [json.dumps(
@@ -220,8 +221,8 @@ class test_ringmasterserver(unittest.TestCase):
              'object': {}})]
         self.assertFalse(rmd.dispersion_ok('container'))
         self.assertFalse(rmd.dispersion_ok('object'))
-        self.assertEquals(rmd.logger.debug.call_count, 2)
-        self.assertEquals(rmd.logger.exception.call_count, 0)
+        self.assertEqual(rmd.logger.debug.call_count, 2)
+        self.assertEqual(rmd.logger.exception.call_count, 0)
         rmd.logger.reset_mock()
 
     def test_min_modify_time(self):
@@ -283,13 +284,13 @@ class test_ringmasterserver(unittest.TestCase):
         rmd.swiftdir = os.path.realpath('.')
         rmd.logger = MagicMock()
         self.assertTrue(rmd.write_builder('object', builder))
-        self.assertEquals(ftmp.mock_calls, [call(
+        self.assertEqual(ftmp.mock_calls, [call(
             suffix='.tmp.builder', dir=os.path.realpath('.'))])
         fake_builder_path = os.path.join(self.testdir, 'object.builder')
         fake_builder_bdir = os.path.join(self.testdir, 'backup')
-        self.assertEquals(
+        self.assertEqual(
             mbackup.mock_calls, [call(fake_builder_path, fake_builder_bdir)])
-        self.assertEquals(fdclose.mock_calls, [call(1)])
+        self.assertEqual(fdclose.mock_calls, [call(1)])
         ftmp.return_value = [2, '/fake/path/a.file']
         mbackup.side_effect = Exception('OMGMONKEY!')
         self.assertRaises(Exception, rmd.write_builder, ['something', 'else'])

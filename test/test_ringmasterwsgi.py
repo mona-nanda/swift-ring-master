@@ -1,7 +1,7 @@
 import os
 import time
 import unittest
-import cPickle as pickle
+import pickle as pickle
 from shutil import rmtree
 from tempfile import mkdtemp
 from mock import MagicMock
@@ -25,7 +25,8 @@ class FakedBuilder(object):
 
     def gen_builder(self, balanced=False):
         builder = RingBuilder(18, 3, 1)
-        for i in xrange(self.device_count):
+        for i in range(self.device_count):
+            region = '1'
             zone = i
             ipaddr = "1.1.1.1"
             port = 6010
@@ -37,7 +38,7 @@ class FakedBuilder(object):
                 next_dev_id = max(d['id'] for d in builder.devs if d) + 1
             builder.add_dev({'id': next_dev_id, 'zone': zone, 'ip': ipaddr,
                              'port': int(port), 'device': device_name,
-                             'weight': weight, 'meta': meta})
+                             'weight': weight, 'meta': meta, 'region': region})
             if balanced:
                 builder.rebalance()
         return builder
@@ -71,7 +72,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         self._setup_builder_rings()
         rma = RingMasterApp({'swiftdir': self.testdir, 'log_path': self.test_log_path})
         for i in rma.current_md5:
-            self.assertEquals(rma._changed(i), False)
+            self.assertEqual(rma._changed(i), False)
         self._setup_builder_rings(count=5)
         for i in rma.current_md5:
             t = time.time() - 300
@@ -85,7 +86,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         self._setup_builder_rings()
         rma = RingMasterApp({'swiftdir': self.testdir, 'log_path': self.test_log_path, 'locktimeout': "0.1"})
         for i in rma.current_md5:
-            self.assertEquals(rma._changed(i), False)
+            self.assertEqual(rma._changed(i), False)
         self._setup_builder_rings(count=5)
         for i in rma.current_md5:
             t = time.time() - 300
@@ -104,14 +105,14 @@ class test_ringmasterwsgi(unittest.TestCase):
         resp = rma.handle_request(req.environ, start_response)
         start_response.assert_called_with(
             '404 Not Found', [('Content-Type', 'text/plain')])
-        self.assertEquals(resp, ['Not Found\r\n'])
+        self.assertEqual(resp, ['Not Found\r\n'])
         # test legit path
         req = Request.blank('/ring/account.ring.gz',
                             environ={'REQUEST_METHOD': 'HEAD'})
         resp = rma.handle_request(req.environ, start_response)
         account_md5 = get_md5sum(os.path.join(self.testdir, 'account.ring.gz'))
         start_response.assert_called_with('200 OK', [('Content-Type', 'application/octet-stream'), ('Etag', account_md5)])
-        self.assertEquals(resp, [])
+        self.assertEqual(resp, [])
 
     def test_handle_ring(self):
         self._setup_builder_rings()
@@ -124,7 +125,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         resp = rma.handle_ring(req.environ, start_response)
         start_response.assert_called_with(
             '404 Not Found', [('Content-Type', 'text/plain')])
-        self.assertEquals(resp, ['Not Found\r\n'])
+        self.assertEqual(resp, ['Not Found\r\n'])
 
         # test bad method
         start_response.reset_mock()
@@ -133,7 +134,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         resp = rma.handle_ring(req.environ, start_response)
         start_response.assert_called_with(
             '501 Not Implemented', [('Content-Type', 'text/plain')])
-        self.assertEquals(resp, ['Not Implemented\r\n'])
+        self.assertEqual(resp, ['Not Implemented\r\n'])
 
         # test HEAD
         start_response.reset_mock()
@@ -142,7 +143,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         resp = rma.handle_ring(req.environ, start_response)
         account_md5 = get_md5sum(os.path.join(self.testdir, 'account.ring.gz'))
         start_response.assert_called_with('200 OK', [('Content-Type', 'application/octet-stream'), ('Etag', account_md5)])
-        self.assertEquals(resp, [])
+        self.assertEqual(resp, [])
 
         # test GET w/ current If-None-Match
         start_response.reset_mock()
@@ -153,7 +154,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         resp = rma.handle_ring(req.environ, start_response)
         start_response.assert_called_with('304 Not Modified', [(
             'Content-Type', 'application/octet-stream')])
-        self.assertEquals(resp, ['Not Modified\r\n'])
+        self.assertEqual(resp, ['Not Modified\r\n'])
 
         # test GET w/ outdated If-None-Match
         start_response.reset_mock()
@@ -164,7 +165,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         resp = rma.handle_ring(req.environ, start_response)
         start_response.assert_called_with('200 OK', [('Content-Type', 'application/octet-stream'), ('Etag', account_md5)])
         testfile1 = os.path.join(self.testdir, 'gettest1.file')
-        with open(testfile1, 'w') as f:
+        with open(testfile1, 'wb') as f:
             for i in resp:
                 f.write(i)
         self.assertTrue(account_md5, get_md5sum(testfile1))
@@ -177,7 +178,7 @@ class test_ringmasterwsgi(unittest.TestCase):
         resp = rma.handle_ring(req.environ, start_response)
         start_response.assert_called_with('200 OK', [('Content-Type', 'application/octet-stream'), ('Etag', account_md5)])
         testfile2 = os.path.join(self.testdir, 'gettest2.file')
-        with open(testfile2, 'w') as f:
+        with open(testfile2, 'wb') as f:
             for i in resp:
                 f.write(i)
         self.assertTrue(account_md5, get_md5sum(testfile2))
